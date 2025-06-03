@@ -343,6 +343,4 @@ Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
 ## 📞 Support
 
 Pour toute question ou problème :
-- 📧 Email: platform-team@entreprise.com
-- 💬 Slack: #platform-support
-- 📖 Wiki: [Confluence Platform](https://wiki.entreprise.com/platform) 
+- 📧 Email: contact@nexagone.fr
