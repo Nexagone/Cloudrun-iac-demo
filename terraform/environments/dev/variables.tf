@@ -72,25 +72,25 @@ variable "vpc_connector_cidr" {
 }
 
 # Configuration Cloud SQL
-variable "db_tier" {
+variable "database_tier" {
   description = "Tier de l'instance Cloud SQL"
   type        = string
   default     = "db-f1-micro"
 }
 
-variable "db_disk_size" {
+variable "disk_size" {
   description = "Taille du disque en GB"
   type        = number
   default     = 20
 }
 
-variable "db_max_disk_size" {
+variable "max_disk_size" {
   description = "Taille maximale du disque en GB"
   type        = number
   default     = 50
 }
 
-variable "db_max_connections" {
+variable "max_connections" {
   description = "Nombre maximum de connexions"
   type        = string
   default     = "50"
@@ -121,25 +121,25 @@ variable "default_image_url" {
   default     = ""
 }
 
-variable "min_instances" {
+variable "cloud_run_min_instances" {
   description = "Nombre minimum d'instances"
   type        = number
   default     = 0
 }
 
-variable "max_instances" {
+variable "cloud_run_max_instances" {
   description = "Nombre maximum d'instances"
   type        = number
   default     = 5
 }
 
-variable "cpu_limit" {
+variable "cloud_run_cpu_limit" {
   description = "Limite CPU"
   type        = string
   default     = "1000m"
 }
 
-variable "memory_limit" {
+variable "cloud_run_memory_limit" {
   description = "Limite mémoire"
   type        = string
   default     = "512Mi"
@@ -180,37 +180,37 @@ variable "slack_webhook_url" {
 variable "latency_threshold_ms" {
   description = "Seuil de latence en millisecondes"
   type        = number
-  default     = 3000  # Plus élevé pour dev
+  default     = 5000  # Plus permissif en dev
 }
 
 variable "error_rate_threshold" {
   description = "Seuil du taux d'erreur"
   type        = number
-  default     = 10  # Plus élevé pour dev
+  default     = 10  # Plus permissif en dev
 }
 
 variable "cpu_threshold" {
   description = "Seuil d'utilisation CPU"
   type        = number
-  default     = 0.9  # Plus élevé pour dev
+  default     = 0.9  # Plus permissif en dev
 }
 
 variable "memory_threshold" {
   description = "Seuil d'utilisation mémoire"
   type        = number
-  default     = 0.9  # Plus élevé pour dev
+  default     = 0.9  # Plus permissif en dev
 }
 
 variable "sql_connections_threshold" {
   description = "Seuil de connexions SQL"
   type        = number
-  default     = 40  # Adapté au tier micro
+  default     = 50  # Plus bas en dev
 }
 
 variable "enable_log_sink" {
-  description = "Activer le sink vers BigQuery"
+  description = "Activer l'export des logs vers BigQuery"
   type        = bool
-  default     = false  # Désactivé pour dev pour économiser
+  default     = false  # Désactivé par défaut en dev
 }
 
 # Configuration Budget

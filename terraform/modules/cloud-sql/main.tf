@@ -27,6 +27,8 @@ resource "google_sql_database_instance" "main" {
     disk_autoresize = true
     disk_autoresize_limit = var.max_disk_size
     
+    user_labels = var.labels
+    
     backup_configuration {
       enabled                        = true
       start_time                    = "03:00"
@@ -82,8 +84,6 @@ resource "google_sql_database_instance" "main" {
   }
   
   depends_on = [var.private_vpc_connection]
-  
-  labels = var.labels
 }
 
 # Réplica de lecture pour la production
@@ -105,6 +105,8 @@ resource "google_sql_database_instance" "read_replica" {
     availability_type = "ZONAL"
     disk_autoresize  = true
     
+    user_labels = var.labels
+    
     ip_configuration {
       ipv4_enabled    = false
       private_network = var.network_id
@@ -114,8 +116,6 @@ resource "google_sql_database_instance" "read_replica" {
       query_insights_enabled = true
     }
   }
-  
-  labels = var.labels
 }
 
 # Base de données principale

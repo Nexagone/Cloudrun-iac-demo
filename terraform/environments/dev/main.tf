@@ -104,10 +104,10 @@ module "cloud_sql" {
   region          = var.region
   
   # Configuration spécifique dev
-  tier                = var.db_tier
-  disk_size          = var.db_disk_size
-  max_disk_size      = var.db_max_disk_size
-  max_connections    = var.db_max_connections
+  tier                = var.database_tier
+  disk_size          = var.disk_size
+  max_disk_size      = var.max_disk_size
+  max_connections    = var.max_connections
   database_name      = var.database_name
   app_user           = var.database_user
   
@@ -159,12 +159,12 @@ module "cloud_run" {
   service_account_email = module.iam.cloud_run_service_account_email
   
   # Scaling (plus conservateur pour dev)
-  min_instances = var.min_instances
-  max_instances = var.max_instances
+  min_instances = var.cloud_run_min_instances
+  max_instances = var.cloud_run_max_instances
   
   # Ressources
-  cpu_limit    = var.cpu_limit
-  memory_limit = var.memory_limit
+  cpu_limit    = var.cloud_run_cpu_limit
+  memory_limit = var.cloud_run_memory_limit
   
   # Base de données
   sql_connection_name      = module.cloud_sql.instance_connection_name

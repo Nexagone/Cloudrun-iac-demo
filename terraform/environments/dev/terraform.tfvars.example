@@ -1,0 +1,109 @@
+# Configuration Développement - Exemple
+# Copiez ce fichier vers terraform.tfvars et adaptez les valeurs
+
+# Configuration globale - À MODIFIER
+project_id   = "votre-project-id-dev"           # Remplacez par votre project ID
+environment  = "dev"
+region       = "europe-west1"
+
+# Configuration réseau
+vpc_cidr_range               = "10.0.0.0/16"
+private_subnet_cidr         = "10.0.1.0/24"
+public_subnet_cidr          = "10.0.2.0/24"
+pods_cidr_range             = "10.0.16.0/20"
+services_cidr_range         = "10.0.32.0/20"
+authorized_networks         = [
+  {
+    name  = "dev-office"
+    value = "203.0.113.0/24"              # Remplacez par votre IP office
+  }
+]
+
+# Configuration Cloud SQL - Développement (économique)
+database_tier                = "db-custom-1-2048"  # 1 vCPU, 2 GB RAM
+disk_size                   = 20                    # 20 GB
+max_disk_size              = 100                    # Limite auto-resize
+high_availability          = false                 # Pas de HA en dev
+backup_retention_days      = 7                     # 7 jours seulement
+backup_location           = "europe-west1"
+point_in_time_recovery    = false                  # Pas de PITR en dev
+maintenance_window_day    = 7                      # Samedi
+maintenance_window_hour   = 2                      # 02:00 UTC
+read_replica_count        = 0                      # Pas de réplicas
+replica_tier              = "db-custom-1-2048"
+
+# Configuration Cloud Run - Développement
+cloud_run_cpu_limit         = "1000m"              # 1 vCPU
+cloud_run_memory_limit      = "512Mi"              # 512 MB RAM
+cloud_run_min_instances     = 0                    # Scale to zero
+cloud_run_max_instances     = 5                    # Maximum 5 instances
+cloud_run_concurrency       = 50                   # 50 requêtes simultanées
+cloud_run_timeout_seconds   = 300                  # Timeout 5 minutes
+cloud_run_cpu_throttling    = true                 # Throttling activé
+
+# Configuration Artifact Registry
+registry_format             = "DOCKER"
+registry_description        = "Development Docker registry pour centralisation de données"
+
+# Configuration monitoring et alertes - À MODIFIER
+enable_monitoring           = true
+alert_email                = "dev-team@example.com"     # Remplacez par votre email
+slack_webhook_url          = ""                         # URL Slack optionnelle
+sms_number                 = ""                         # SMS optionnel
+
+# Budget et coûts
+budget_amount              = "100"                 # Budget 100€/mois
+budget_alert_thresholds    = [0.8, 1.0]          # Alertes à 80% et 100%
+
+# Sécurité
+enable_private_ip          = true
+enable_ssl_redirect        = true
+enable_armor               = false                # Pas de Cloud Armor en dev
+allowed_source_ranges      = ["0.0.0.0/0"]
+enable_audit_logs          = false               # Pas d'audit logs en dev
+log_retention_days         = 7                   # Rétention courte
+
+# Configuration spécifique développement
+deletion_protection        = false               # Pas de protection en dev
+skip_final_snapshot       = true                 # Pas de snapshot final
+enable_performance_insights = false              # Pas d'insights en dev
+enable_query_insights      = false
+
+# Labels
+labels = {
+  environment   = "dev"
+  project       = "data-centralization"
+  team          = "platform"                     # Remplacez par votre équipe
+  cost-center   = "development"                  # Remplacez par votre centre de coût
+  backup        = "optional"
+  monitoring    = "basic"
+  compliance    = "not-required"
+  data-class    = "public"
+}
+
+# Configuration des secrets
+enable_secret_manager      = true
+secret_locations          = ["europe-west1"]    # Single région pour dev
+
+# Configuration backup (simplifiée pour dev)
+backup_cross_region        = false
+backup_location_secondary  = ""
+enable_point_in_time_recovery = false
+
+# Performance (basique pour dev)
+enable_connection_pooling  = false
+max_connections           = 50                  # Connexions limitées
+shared_preload_libraries  = ""                 # Pas de libs supplémentaires
+
+# Monitoring basique
+enable_slow_query_log     = false
+slow_query_threshold      = "5s"               # Seuil élevé
+enable_connection_logging = false
+enable_checkpoints_logging = false
+
+# Sécurité basique
+require_ssl               = false              # SSL optionnel en dev
+ssl_mode                 = "ALLOW_UNENCRYPTED_AND_ENCRYPTED"
+enable_pgaudit           = false              # Pas d'audit en dev
+log_statement            = "none"             # Pas de logs statements
+log_min_duration_statement = -1               # Désactivé 

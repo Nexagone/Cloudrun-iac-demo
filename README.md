@@ -55,51 +55,109 @@ terraform/
 
 ### Configuration Initiale
 
+#### Option 1: Script Automatique (Recommandé)
+
+1. **Exécuter le script de configuration**
+```bash
+# Pour le développement
+./scripts/setup-environment.sh dev
+
+# Pour le staging
+./scripts/setup-environment.sh staging
+
+# Pour la production
+./scripts/setup-environment.sh prod
+```
+
+Le script va automatiquement :
+- Copier le fichier d'exemple `terraform.tfvars.example` vers `terraform.tfvars`
+- Vous guider pour modifier les valeurs obligatoires
+- Créer le bucket GCS pour le state Terraform
+- Initialiser Terraform
+
+#### Option 2: Configuration Manuelle
+
 1. **Cloner le repository**
 ```bash
 git clone <repository-url>
 cd terraform
 ```
 
-2. **Configurer les variables**
+2. **Configurer les variables pour votre environnement**
 ```bash
-# Copier et modifier le fichier tfvars
-cp environments/dev/terraform.tfvars.example environments/dev/terraform.tfvars
+# Copier le fichier d'exemple
+cd terraform/environments/dev
+cp terraform.tfvars.example terraform.tfvars
 ```
 
 3. **Modifier les valeurs dans `terraform.tfvars`**
 ```hcl
+# Configuration obligatoire
 project_id      = "votre-project-id-dev"
-project_name    = "data-centralization"
-billing_account = "VOTRE-BILLING-ACCOUNT-ID"
+alert_email     = "votre-email@entreprise.com"
 
-notification_emails = [
-  "votre-email@entreprise.com"
+# Configuration optionnelle
+slack_webhook_url = "https://hooks.slack.com/services/..."
+authorized_networks = [
+  {
+    name  = "office"
+    value = "203.0.113.0/24"  # Votre IP office
+  }
 ]
 ```
 
 4. **Créer le bucket pour le state**
 ```bash
-gsutil mb gs://terraform-state-votre-project-id-dev
-gsutil versioning set on gs://terraform-state-votre-project-id-dev
+PROJECT_ID="votre-project-id-dev"
+gsutil mb -p $PROJECT_ID gs://terraform-state-dev-data-centralization
+gsutil versioning set on gs://terraform-state-dev-data-centralization
+```
+
+5. **Initialiser Terraform**
+```bash
+terraform init -backend-config=backend.conf
 ```
 
 ### Déploiement
 
-1. **Initialiser Terraform**
+Une fois la configuration terminée, vous pouvez déployer l'infrastructure :
+
+#### Via Makefile (Recommandé)
 ```bash
-cd environments/dev
-terraform init -backend-config=backend.conf
+# Planifier les changements
+make plan ENV=dev
+
+# Déployer l'infrastructure complète
+make apply ENV=dev
+
+# Ou déploiement par étapes
+make deploy-base ENV=dev      # Infrastructure de base
+make deploy-database ENV=dev  # Base de données
+make deploy-app ENV=dev      # Application Cloud Run
+make deploy-monitoring ENV=dev # Monitoring
 ```
 
-2. **Planifier le déploiement**
+#### Via Terraform Direct
 ```bash
+cd terraform/environments/dev
+
+# Planifier le déploiement
 terraform plan -var-file=terraform.tfvars
+
+# Appliquer les changements
+terraform apply -var-file=terraform.tfvars
 ```
 
-3. **Appliquer les changements**
+#### Vérification Post-Déploiement
 ```bash
-terraform apply -var-file=terraform.tfvars
+# Vérifier les outputs
+make output ENV=dev
+
+# Tester l'application
+make test-health ENV=dev
+
+# Voir les logs
+make logs ENV=dev
 ```
 
 ## 🔧 Configuration des Modules
@@ -138,24 +196,54 @@ terraform apply -var-file=terraform.tfvars
 
 ## 🌍 Gestion Multi-Environnements
 
-### Environnement Dev
+### Environnement Dev (`dev`)
 - **Ressources minimales** pour économiser
+- **Instances** : db-custom-1-2048, 0-5 instances Cloud Run
 - **Deletion protection** désactivée
-- **Logs** non archivés
+- **Logs** non archivés longue durée
 - **Budget** : 100€/mois
+- **HA Cloud SQL** : Désactivée
+- **Réplicas lecture** : 0
 
-### Environnement Staging
+### Environnement Staging (`staging`)
 - **Configuration intermédiaire**
+- **Instances** : db-custom-2-4096, 1-10 instances Cloud Run
 - **Deletion protection** activée
-- **Logs** archivés
+- **Logs** archivés 30 jours
 - **Tests de charge** possibles
+- **Budget** : 250€/mois
+- **HA Cloud SQL** : Activée
+- **Réplicas lecture** : 1
 
-### Environnement Production
-- **Haute disponibilité** activée
-- **Réplicas de lecture** Cloud SQL
+### Environnement Production (`prod`)
+- **Haute disponibilité** obligatoire
+- **Instances** : db-custom-4-8192, 2-100 instances Cloud Run
+- **Réplicas de lecture** Cloud SQL (x2)
 - **CPU always allocated** Cloud Run
-- **Monitoring renforcé**
-- **Backups cross-region**
+- **Monitoring renforcé** avec SMS
+- **Backups cross-region** (30 jours)
+- **Deletion protection** obligatoire
+- **SSL strict mode** activé
+- **Audit logs** complets (90 jours)
+- **Budget** : 500€/mois
+- **Sécurité renforcée** : pgAudit, KMS
+
+#### Spécificités Production
+```hcl
+# Configuration critique production
+high_availability          = true
+read_replica_count         = 2
+backup_cross_region        = true
+deletion_protection        = true
+require_ssl               = true
+ssl_mode                  = "ENCRYPTED_ONLY"
+enable_pgaudit            = true
+log_statement             = "all"
+cloud_run_min_instances   = 2
+cloud_run_cpu_throttling  = false
+enable_audit_logs         = true
+log_retention_days        = 90
+```
 
 ## 📊 Variables d'Environnement
 
