@@ -2,6 +2,10 @@
 terraform {
   required_version = ">= 1.5"
   
+  backend "gcs" {
+    # Configuration dans backend.conf
+  }
+  
   required_providers {
     google = {
       source  = "hashicorp/google"
@@ -11,32 +15,46 @@ terraform {
       source  = "hashicorp/google-beta"
       version = "~> 5.0"
     }
-  }
-  
-  # Backend configuré pour la production avec encryption
-  backend "gcs" {
-    bucket  = "terraform-state-prod-data-centralization"
-    prefix  = "terraform/state"
-    encryption_key = "your-encryption-key-for-prod"
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.1"
+    }
   }
 }
 
-# Configuration du provider Google pour la production
+# Configuration du provider Google
 provider "google" {
   project = var.project_id
   region  = var.region
-  
-  # Configuration spécifique production
-  user_project_override = true
-  billing_project       = var.project_id
 }
 
 provider "google-beta" {
   project = var.project_id
   region  = var.region
+}
+
+# Activation des APIs nécessaires
+resource "google_project_service" "apis" {
+  for_each = toset([
+    "run.googleapis.com",
+    "sql-component.googleapis.com",
+    "sqladmin.googleapis.com",
+    "secretmanager.googleapis.com",
+    "compute.googleapis.com",
+    "servicenetworking.googleapis.com",
+    "logging.googleapis.com",
+    "monitoring.googleapis.com",
+    "bigquery.googleapis.com",
+    "cloudbuild.googleapis.com",
+    "artifactregistry.googleapis.com",
+    "vpcaccess.googleapis.com"
+  ])
   
-  user_project_override = true
-  billing_project       = var.project_id
+  project = var.project_id
+  service = each.value
+  
+  disable_dependent_services = false
+  disable_on_destroy        = false
 }
 
 # Data sources
@@ -52,10 +70,9 @@ locals {
   
   # Configuration spécifique production
   common_labels = merge(var.labels, {
-    terraform     = "true"
-    environment   = local.environment
-    deployed-by   = "terraform"
-    created-date  = formatdate("YYYY-MM-DD", timestamp())
+    environment  = var.environment
+    project      = var.project_name
+    managed-by   = "terraform"
   })
   
   # Configuration réseau production
@@ -89,7 +106,7 @@ locals {
   }
 }
 
-# Module Networking - Configuration production avec redondance
+# Module Networking
 module "networking" {
   source = "../../modules/networking"
   
@@ -103,28 +120,28 @@ module "networking" {
   depends_on = [google_project_service.apis]
 }
 
-# Module IAM - Sécurité renforcée pour la production
+# Module IAM
 module "iam" {
   source = "../../modules/iam"
   
   project_name = var.project_name
   project_id   = var.project_id
-  environment  = local.environment
+  environment  = var.environment
   
   workload_identity_users = var.workload_identity_users
   
-  depends_on = [module.networking]
+  depends_on = [google_project_service.apis]
 }
 
-# Module Cloud SQL - Configuration haute disponibilité
+# Module Cloud SQL
 module "cloud_sql" {
   source = "../../modules/cloud-sql"
   
   project_name    = var.project_name
-  environment     = local.environment
+  environment     = var.environment
   region          = var.region
   
-  # Configuration instance principale
+  # Configuration production
   tier                = var.database_tier
   disk_size          = var.disk_size
   max_disk_size      = var.max_disk_size
@@ -143,29 +160,45 @@ module "cloud_sql" {
   
   labels = local.common_labels
   
-  depends_on = [module.networking, module.iam]
+  depends_on = [
+    google_project_service.apis,
+    module.networking
+  ]
 }
 
-# Module Cloud Run - Configuration production avec scaling
+# Artifact Registry pour les images Docker
+resource "google_artifact_registry_repository" "docker_repo" {
+  location      = var.region
+  repository_id = "${var.project_name}-docker"
+  description   = "Repository Docker pour ${var.project_name}"
+  format        = "DOCKER"
+  
+  labels = local.common_labels
+  
+  depends_on = [google_project_service.apis]
+}
+
+# Module Cloud Run
 module "cloud_run" {
   source = "../../modules/cloud-run"
   
   project_name = var.project_name
   project_id   = var.project_id
-  environment  = local.environment
+  environment  = var.environment
   region       = var.region
   
-  # Image
-  image_url = local.cloud_run_config.image_url
+  # Image Docker
+  image_url = var.docker_image_url
+  docker_registry_credentials = var.docker_registry
   
   # Service Account
   service_account_email = module.iam.cloud_run_service_account_email
   
   # Configuration performance production
-  cpu_limit    = var.cloud_run_cpu_limit
-  memory_limit = var.cloud_run_memory_limit
   min_instances = var.cloud_run_min_instances
   max_instances = var.cloud_run_max_instances
+  cpu_limit    = var.cloud_run_cpu_limit
+  memory_limit = var.cloud_run_memory_limit
   
   # Base de données
   sql_connection_name      = module.cloud_sql.instance_connection_name
@@ -174,40 +207,45 @@ module "cloud_run" {
   db_password_secret_name = module.cloud_sql.app_password_secret_name
   
   # Variables d'environnement
-  environment_variables = {
-    SPRING_PROFILES_ACTIVE     = local.environment
-    DB_NAME                   = local.database_config.database_name
-    DB_USER                   = local.database_config.user_name
-    INSTANCE_CONNECTION_NAME  = module.cloud_sql.instance_connection_name
-    ENVIRONMENT              = local.environment
-    LOG_LEVEL               = "INFO"
-    JVM_OPTS                = "-Xmx1536m -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
-  }
+  environment_variables = merge(var.environment_variables, {
+    SPRING_PROFILES_ACTIVE = var.environment
+  })
   
   # Réseau
-  network_name = module.networking.network_name
+  network_name         = module.networking.network_name
+  create_vpc_connector = true
+  vpc_connector_cidr   = var.vpc_connector_cidr
+  
+  # Accès
+  allow_public_access = var.allow_public_access
+  custom_domain      = var.custom_domain
   
   labels = local.common_labels
   
-  depends_on = [module.networking, module.iam, module.cloud_sql]
+  depends_on = [
+    google_project_service.apis,
+    module.networking,
+    module.iam,
+    module.cloud_sql
+  ]
 }
 
-# Module Monitoring - Surveillance complète production
+# Module Monitoring
 module "monitoring" {
   source = "../../modules/monitoring"
   
   project_name = var.project_name
   project_id   = var.project_id
-  environment  = local.environment
+  environment  = var.environment
   region       = var.region
   
-  service_name = module.cloud_run.service_name
-  service_url  = module.cloud_run.service_url
-  sql_instance_name = module.cloud_sql.instance_name
+  service_name        = module.cloud_run.service_name
+  service_url         = module.cloud_run.service_url
+  sql_instance_name   = module.cloud_sql.instance_name
   
   # Notifications
   notification_emails = var.notification_emails
-  slack_webhook_url  = var.slack_webhook_url
+  slack_webhook_url   = var.slack_webhook_url
   
   # Seuils d'alerte
   latency_threshold_ms      = var.latency_threshold_ms
@@ -217,10 +255,53 @@ module "monitoring" {
   sql_connections_threshold = var.sql_connections_threshold
   
   # Logs
-  enable_log_sink  = var.enable_log_sink
-  bigquery_dataset = "${var.project_name}_${local.environment}_logs"
+  enable_log_sink   = var.enable_log_sink
+  bigquery_dataset  = "${var.project_name}_${var.environment}_logs"
   
   labels = local.common_labels
   
-  depends_on = [module.cloud_run, module.cloud_sql]
+  depends_on = [
+    google_project_service.apis,
+    module.cloud_run
+  ]
+}
+
+# Budget Alert
+resource "google_billing_budget" "budget" {
+  count = var.budget_amount > 0 ? 1 : 0
+  
+  billing_account = var.billing_account
+  display_name    = "Budget ${var.project_name} ${var.environment}"
+  
+  budget_filter {
+    projects = ["projects/${var.project_id}"]
+    credit_types_treatment = "INCLUDE_ALL_CREDITS"
+  }
+  
+  amount {
+    specified_amount {
+      currency_code = "EUR"
+      units         = tostring(var.budget_amount)
+    }
+  }
+  
+  threshold_rules {
+    threshold_percent = 0.5
+    spend_basis      = "CURRENT_SPEND"
+  }
+  
+  threshold_rules {
+    threshold_percent = 0.9
+    spend_basis      = "CURRENT_SPEND"
+  }
+  
+  threshold_rules {
+    threshold_percent = 1.0
+    spend_basis      = "FORECASTED_SPEND"
+  }
+  
+  all_updates_rule {
+    monitoring_notification_channels = module.monitoring.notification_channels.email
+    disable_default_iam_recipients   = false
+  }
 } 

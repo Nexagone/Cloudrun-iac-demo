@@ -152,8 +152,9 @@ module "cloud_run" {
   environment  = var.environment
   region       = var.region
   
-  # Image par défaut (sera mise à jour par CI/CD)
-  image_url = var.default_image_url != "" ? var.default_image_url : "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.docker_repo.repository_id}/app:latest"
+  # Image Docker
+  image_url = var.docker_image_url
+  docker_registry_credentials = var.docker_registry
   
   # Service Account
   service_account_email = module.iam.cloud_run_service_account_email
@@ -173,7 +174,9 @@ module "cloud_run" {
   db_password_secret_name = module.cloud_sql.app_password_secret_name
   
   # Variables d'environnement supplémentaires
-  environment_variables = var.environment_variables
+  environment_variables = merge(var.environment_variables, {
+    SPRING_PROFILES_ACTIVE = var.environment
+  })
   
   # Réseau
   network_name         = module.networking.network_name

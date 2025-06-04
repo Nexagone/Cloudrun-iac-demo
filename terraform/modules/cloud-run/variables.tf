@@ -126,7 +126,7 @@ variable "create_vpc_connector" {
 }
 
 variable "vpc_connector_cidr" {
-  description = "CIDR pour le connecteur VPC"
+  description = "CIDR pour le connecteur VPC Cloud Run"
   type        = string
   default     = "10.8.0.0/28"
 }
@@ -135,4 +135,14 @@ variable "labels" {
   description = "Labels à appliquer aux ressources"
   type        = map(string)
   default     = {}
+}
+
+variable "docker_registry_credentials" {
+  description = "Credentials pour le registre Docker privé"
+  type = object({
+    server   = string
+    username = string
+    password = string
+  })
+  default = null
 } 

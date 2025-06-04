@@ -35,30 +35,29 @@ resource "google_cloud_run_v2_service" "main" {
         startup_cpu_boost = var.environment == "prod" ? true : false
       }
       
-      # Variables d'environnement
+      # Variables d'environnement Spring Boot
       env {
-        name  = "SPRING_PROFILES_ACTIVE"
-        value = var.environment
+        name  = "SPRING_DATASOURCE_HOST"
+        value = "localhost"  # Utilisation de localhost car Cloud SQL est monté localement
       }
       
       env {
-        name  = "DB_NAME"
+        name  = "SPRING_DATASOURCE_PORT"
+        value = "5432"
+      }
+      
+      env {
+        name  = "SPRING_DATASOURCE_DB"
         value = var.database_name
       }
       
       env {
-        name  = "INSTANCE_CONNECTION_NAME"
-        value = var.sql_connection_name
-      }
-      
-      env {
-        name  = "DB_USER"
+        name  = "SPRING_DATASOURCE_USERNAME"
         value = var.database_user
       }
       
-      # Mot de passe depuis Secret Manager
       env {
-        name = "DB_PASS"
+        name  = "SPRING_DATASOURCE_PASSWORD"
         value_source {
           secret_key_ref {
             secret  = var.db_password_secret_name
@@ -98,6 +97,14 @@ resource "google_cloud_run_v2_service" "main" {
         timeout_seconds      = 10
         period_seconds       = 10
         failure_threshold    = 3
+      }
+      
+      # Configuration des credentials Docker si fournis
+      dynamic "image_pull_credentials" {
+        for_each = var.docker_registry_credentials != null ? [1] : []
+        content {
+          secret_name = google_secret_manager_secret.docker_credentials[0].secret_id
+        }
       }
       
       liveness_probe {
@@ -175,4 +182,33 @@ resource "google_vpc_access_connector" "connector" {
   max_instances = 10
   
   machine_type = "e2-micro"
+}
+
+# Secret pour les credentials Docker
+resource "google_secret_manager_secret" "docker_credentials" {
+  count = var.docker_registry_credentials != null ? 1 : 0
+  
+  secret_id = "${var.project_name}-${var.environment}-docker-credentials"
+  
+  replication {
+    auto {}
+  }
+  
+  labels = var.labels
+}
+
+resource "google_secret_manager_secret_version" "docker_credentials" {
+  count = var.docker_registry_credentials != null ? 1 : 0
+  
+  secret = google_secret_manager_secret.docker_credentials[0].id
+  
+  secret_data = jsonencode({
+    auths = {
+      "${var.docker_registry_credentials.server}" = {
+        username = var.docker_registry_credentials.username
+        password = var.docker_registry_credentials.password
+        auth     = base64encode("${var.docker_registry_credentials.username}:${var.docker_registry_credentials.password}")
+      }
+    }
+  })
 } 

@@ -225,4 +225,19 @@ variable "workload_identity_users" {
   description = "Liste des utilisateurs pour Workload Identity"
   type        = list(string)
   default     = []
+}
+
+variable "docker_registry" {
+  description = "Configuration du registre Docker privé"
+  type = object({
+    server   = string
+    username = string
+    password = string
+  })
+  default = null
+}
+
+variable "docker_image_url" {
+  description = "URL complète de l'image Docker dans le registre privé"
+  type        = string
 } 

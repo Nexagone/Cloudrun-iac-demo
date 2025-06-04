@@ -612,4 +612,19 @@ variable "enable_log_sink" {
 variable "billing_account" {
   description = "ID du compte de facturation"
   type        = string
+}
+
+variable "docker_registry" {
+  description = "Configuration du registre Docker privé"
+  type = object({
+    server   = string
+    username = string
+    password = string
+  })
+  default = null
+}
+
+variable "docker_image_url" {
+  description = "URL complète de l'image Docker dans le registre privé"
+  type        = string
 } 

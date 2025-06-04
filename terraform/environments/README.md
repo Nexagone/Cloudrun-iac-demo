@@ -1,6 +1,110 @@
-# Configuration des Environnements
+# Configuration des Environnements Terraform
 
-Ce répertoire contient les configurations Terraform pour les différents environnements du projet de centralisation de données.
+Ce répertoire contient la configuration Terraform pour les différents environnements de l'application de centralisation de données.
+
+## Structure
+
+```
+environments/
+├── dev/
+│   ├── main.tf
+│   ├── variables.tf
+│   └── terraform.tfvars
+├── staging/
+│   ├── main.tf
+│   ├── variables.tf
+│   └── terraform.tfvars
+└── prod/
+    ├── main.tf
+    ├── variables.tf
+    └── terraform.tfvars
+```
+
+## Configuration des Variables
+
+### Variables Communes
+
+Pour chaque environnement, vous devez configurer les variables suivantes dans le fichier `terraform.tfvars` :
+
+1. Configuration du Projet :
+   ```hcl
+   project_id      = "votre-projet-id"
+   project_name    = "data-centralization"
+   billing_account = "VOTRE-COMPTE-FACTURATION"
+   ```
+
+2. Configuration Docker :
+   ```hcl
+   docker_registry = {
+     server   = "registry.example.com"
+     username = "votre-username"
+     password = "votre-password"
+   }
+   docker_image_url = "registry.example.com/votre-app:tag"
+   ```
+
+### Spécificités par Environnement
+
+#### Développement (dev)
+- Configuration minimale
+- Pas de haute disponibilité
+- Budget limité
+- Monitoring moins strict
+
+#### Staging
+- Configuration intermédiaire
+- Haute disponibilité optionnelle
+- Monitoring plus strict
+- Budget modéré
+
+#### Production
+- Configuration complète
+- Haute disponibilité activée
+- Réplicas de lecture
+- Monitoring strict
+- Budget plus élevé
+
+## Variables d'Environnement Spring Boot
+
+Les variables d'environnement suivantes sont automatiquement configurées pour l'application Spring Boot :
+
+```hcl
+SPRING_DATASOURCE_HOST     = "localhost"  # Cloud SQL est monté localement
+SPRING_DATASOURCE_PORT     = "5432"
+SPRING_DATASOURCE_DB       = var.database_name
+SPRING_DATASOURCE_USERNAME = var.database_user
+SPRING_DATASOURCE_PASSWORD = [Géré via Secret Manager]
+```
+
+## Utilisation
+
+1. Naviguez dans le répertoire de l'environnement souhaité :
+   ```bash
+   cd environments/[dev|staging|prod]
+   ```
+
+2. Initialisez Terraform :
+   ```bash
+   terraform init -backend-config=backend.conf
+   ```
+
+3. Vérifiez le plan :
+   ```bash
+   terraform plan
+   ```
+
+4. Appliquez la configuration :
+   ```bash
+   terraform apply
+   ```
+
+## Notes Importantes
+
+1. Les secrets (mots de passe, credentials) sont gérés via Google Secret Manager
+2. La base de données est accessible uniquement via le réseau privé
+3. Les backups sont activés par défaut dans tous les environnements
+4. Le monitoring est configuré avec des seuils adaptés à chaque environnement
+5. Les variables d'environnement Spring Boot sont automatiquement configurées
 
 ## 📁 Structure des Environnements
 

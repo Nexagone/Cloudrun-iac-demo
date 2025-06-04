@@ -612,4 +612,43 @@ variable "workload_identity_users" {
   description = "Liste des utilisateurs pour Workload Identity"
   type        = list(string)
   default     = []
+}
+
+variable "docker_registry" {
+  description = "Configuration du registre Docker privé"
+  type = object({
+    server   = string
+    username = string
+    password = string
+  })
+  default = null
+}
+
+variable "docker_image_url" {
+  description = "URL complète de l'image Docker dans le registre privé"
+  type        = string
+}
+
+variable "environment_variables" {
+  description = "Variables d'environnement supplémentaires pour Cloud Run"
+  type        = map(string)
+  default     = {}
+}
+
+variable "vpc_connector_cidr" {
+  description = "CIDR pour le connecteur VPC Cloud Run"
+  type        = string
+  default     = "10.8.0.0/28"
+}
+
+variable "allow_public_access" {
+  description = "Autoriser l'accès public"
+  type        = bool
+  default     = true
+}
+
+variable "custom_domain" {
+  description = "Domaine personnalisé"
+  type        = string
+  default     = ""
 } 

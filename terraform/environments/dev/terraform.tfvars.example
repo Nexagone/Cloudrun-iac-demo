@@ -1,6 +1,68 @@
 # Configuration Développement - Exemple
 # Copiez ce fichier vers terraform.tfvars et adaptez les valeurs
 
+# Configuration du projet
+project_id       = "your-project-id-dev"          # ID de votre projet GCP
+project_name     = "data-centralization"          # Nom de votre projet
+billing_account  = "XXXXXX-XXXXXX-XXXXXX"        # ID de votre compte de facturation
+environment      = "dev"                          # Ne pas modifier
+region          = "europe-west1"                  # Région GCP
+
+# Labels
+team         = "platform"                         # Équipe responsable
+cost_center  = "engineering"                      # Centre de coût
+
+# Configuration réseau
+services_subnet_cidr     = "10.1.0.0/24"         # CIDR pour les services
+database_subnet_cidr     = "10.2.0.0/24"         # CIDR pour la base de données
+services_secondary_cidr  = "10.3.0.0/16"         # CIDR secondaire
+vpc_connector_cidr       = "10.8.0.0/28"         # CIDR pour le connecteur VPC
+
+# Configuration Cloud SQL
+database_tier           = "db-f1-micro"          # Tier minimal pour dev
+disk_size              = 20                      # Taille du disque en GB
+max_disk_size          = 50                      # Taille maximale du disque en GB
+max_connections        = "50"                    # Nombre maximal de connexions
+database_name          = "app_db"                # Nom de la base de données
+database_user          = "app_user"              # Utilisateur de l'application
+point_in_time_recovery = false                   # Récupération point-in-time
+
+# Configuration Cloud Run
+cloud_run_min_instances = 0                      # Scale to zero activé
+cloud_run_max_instances = 5                      # Maximum 5 instances
+cloud_run_cpu_limit    = "1000m"                # 1 vCPU
+cloud_run_memory_limit = "512Mi"                # 512 MB RAM
+allow_public_access    = true                    # Accès public autorisé
+
+# Configuration Docker
+docker_registry = {
+  server   = "registry.example.com"             # URL de votre registre privé
+  username = "your-username"                    # Nom d'utilisateur
+  password = "your-password"                    # Mot de passe
+}
+docker_image_url = "registry.example.com/your-app:latest"  # URL de votre image
+
+# Configuration monitoring
+notification_emails     = ["dev-team@example.com"]  # Emails pour les notifications
+slack_webhook_url      = "https://hooks.slack.com/services/XXXXX/YYYYY/ZZZZZ"  # Webhook Slack
+latency_threshold_ms   = 5000                   # Seuil de latence en ms
+error_rate_threshold   = 10                     # Seuil de taux d'erreur
+cpu_threshold         = 0.9                     # Seuil d'utilisation CPU
+memory_threshold      = 0.9                     # Seuil d'utilisation mémoire
+sql_connections_threshold = 50                  # Seuil de connexions SQL
+enable_log_sink       = false                   # Désactivé pour dev
+
+# Budget
+budget_amount = 50                              # Budget mensuel en euros
+
+# Variables d'environnement supplémentaires pour l'application
+environment_variables = {
+  "EXTERNAL_API_URL"     = "https://api.dev.exemple.com"
+  "SHEETS_API_ENABLED"   = "true"
+  "LOG_LEVEL"           = "DEBUG"
+  "FEATURE_FLAG_X"      = "enabled"
+}
+
 # Configuration globale - À MODIFIER
 project_id   = "votre-project-id-dev"           # Remplacez par votre project ID
 environment  = "dev"
@@ -20,23 +82,13 @@ authorized_networks         = [
 ]
 
 # Configuration Cloud SQL - Développement (économique)
-database_tier                = "db-custom-1-2048"  # 1 vCPU, 2 GB RAM
-disk_size                   = 20                    # 20 GB
-max_disk_size              = 100                    # Limite auto-resize
 high_availability          = false                 # Pas de HA en dev
 backup_retention_days      = 7                     # 7 jours seulement
 backup_location           = "europe-west1"
-point_in_time_recovery    = false                  # Pas de PITR en dev
-maintenance_window_day    = 7                      # Samedi
-maintenance_window_hour   = 2                      # 02:00 UTC
 read_replica_count        = 0                      # Pas de réplicas
 replica_tier              = "db-custom-1-2048"
 
 # Configuration Cloud Run - Développement
-cloud_run_cpu_limit         = "1000m"              # 1 vCPU
-cloud_run_memory_limit      = "512Mi"              # 512 MB RAM
-cloud_run_min_instances     = 0                    # Scale to zero
-cloud_run_max_instances     = 5                    # Maximum 5 instances
 cloud_run_concurrency       = 50                   # 50 requêtes simultanées
 cloud_run_timeout_seconds   = 300                  # Timeout 5 minutes
 cloud_run_cpu_throttling    = true                 # Throttling activé
@@ -52,7 +104,6 @@ slack_webhook_url          = ""                         # URL Slack optionnelle
 sms_number                 = ""                         # SMS optionnel
 
 # Budget et coûts
-budget_amount              = "100"                 # Budget 100€/mois
 budget_alert_thresholds    = [0.8, 1.0]          # Alertes à 80% et 100%
 
 # Sécurité
@@ -92,7 +143,6 @@ enable_point_in_time_recovery = false
 
 # Performance (basique pour dev)
 enable_connection_pooling  = false
-max_connections           = 50                  # Connexions limitées
 shared_preload_libraries  = ""                 # Pas de libs supplémentaires
 
 # Monitoring basique
