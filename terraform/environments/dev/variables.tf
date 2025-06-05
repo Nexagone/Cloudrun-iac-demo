@@ -9,6 +9,11 @@ variable "project_name" {
   type        = string
 }
 
+variable "app_name" {
+  description = "Nom de l'application"
+  type        = string
+}
+
 # Variables d'environnement
 variable "environment" {
   description = "Nom de l'environnement"

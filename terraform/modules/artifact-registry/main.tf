@@ -1,5 +1,14 @@
+# Activation de l'API Artifact Registry
+resource "google_project_service" "artifact_registry" {
+  service = "artifactregistry.googleapis.com"
+  disable_dependent_services = false
+  disable_on_destroy        = false
+}
+
 # Dépôt Artifact Registry
 resource "google_artifact_registry_repository" "main" {
+  depends_on = [google_project_service.artifact_registry]
+  
   location      = var.region
   repository_id = "${lower(var.project_name)}-${var.environment}"
   description   = "Dépôt Docker pour ${var.project_name} - ${var.environment}"

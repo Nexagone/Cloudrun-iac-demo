@@ -14,8 +14,8 @@ output "service_location" {
 }
 
 output "vpc_connector_name" {
-  description = "Nom du connecteur VPC"
-  value       = var.create_vpc_connector ? google_vpc_access_connector.connector[0].name : ""
+  description = "Nom du connecteur VPC créé"
+  value       = var.create_vpc_connector ? google_vpc_access_connector.connector[0].name : var.vpc_connector_name
 }
 
 output "custom_domain_status" {

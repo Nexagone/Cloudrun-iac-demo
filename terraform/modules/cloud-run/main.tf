@@ -5,7 +5,7 @@ data "google_sql_database_instance" "instance" {
 
 # Service Cloud Run
 resource "google_cloud_run_v2_service" "main" {
-  name     = "${lower(var.project_name)}-${var.environment}-service"
+  name     = var.service_name
   location = var.region
   
   template {

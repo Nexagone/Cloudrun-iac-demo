@@ -148,19 +148,19 @@ module "artifact_registry" {
 module "cloud_run" {
   source = "../../modules/cloud-run"
   
-  project_name = var.project_name
-  project_id   = var.project_id
-  environment  = var.environment
-  region       = var.region
+  project_id      = var.project_id
+  project_name    = var.project_name
+  environment     = var.environment
+  region         = var.region
   
-  # Image Docker
-  image_url = "${module.artifact_registry.repository_url}/dummy-data-api:latest"
+  service_name    = "${var.project_name}-${var.environment}-${var.app_name}"
+  image_url      = "${module.artifact_registry.repository_url}/${var.app_name}:latest"
   docker_registry_credentials = var.docker_registry
   
   # Service Account
   service_account_email = module.iam.cloud_run_service_account_email
   
-  # Scaling (plus conservateur pour dev)
+  # Scaling
   min_instances = var.cloud_run_min_instances
   max_instances = var.cloud_run_max_instances
   
@@ -174,7 +174,7 @@ module "cloud_run" {
   database_user           = module.cloud_sql.app_user
   db_password_secret_name = module.cloud_sql.app_password_secret_name
   
-  # Variables d'environnement supplémentaires
+  # Variables d'environnement
   environment_variables = merge(var.environment_variables, {
     SPRING_PROFILES_ACTIVE = var.environment
   })
@@ -182,7 +182,7 @@ module "cloud_run" {
   # Réseau
   network_name         = module.networking.network_name
   create_vpc_connector = true
-  vpc_connector_name   = module.cloud_run.vpc_connector_name
+  vpc_connector_name   = "run-${var.environment}-connector"
   vpc_connector_cidr   = var.vpc_connector_cidr
   
   # Accès

@@ -1,3 +1,8 @@
+variable "service_name" {
+  description = "Nom du service Cloud Run"
+  type        = string
+}
+
 variable "project_name" {
   description = "Nom du projet"
   type        = string
