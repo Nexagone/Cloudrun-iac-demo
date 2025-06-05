@@ -5,10 +5,10 @@
 # Configuration du projet
 project_id       = "your-project-id-prod"      # ID de votre projet GCP
 project_name     = "data-centralization"       # Nom de votre projet
-billing_account  = "XXXXXX-XXXXXX-XXXXXX"     # ID de votre compte de facturation
+
 environment      = "prod"                      # Ne pas modifier
 region          = "europe-west1"               # Région GCP
-
+app_name        = "dummy-data-api"
 # Configuration réseau
 services_subnet_cidr     = "10.2.3.0/24"      # CIDR pour les services
 database_subnet_cidr     = "10.2.4.0/24"      # CIDR pour la base de données
