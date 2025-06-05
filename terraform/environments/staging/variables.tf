@@ -628,3 +628,27 @@ variable "docker_image_url" {
   description = "URL complète de l'image Docker dans le registre privé"
   type        = string
 } 
+
+# Labels
+variable "team" {
+  description = "Nom de l'équipe"
+  type        = string
+  default     = "platform"
+}
+
+variable "cost_center" {
+  description = "Centre de coût"
+  type        = string
+  default     = "it-infrastructure"
+}
+
+variable "app_name" {
+  description = "Nom de l'application"
+  type        = string
+}
+
+variable "backup_region" {
+  description = "Région pour les sauvegardes"
+  type        = string
+  default     = "europe-west2"
+}

@@ -46,8 +46,8 @@ resource "google_project_service" "apis" {
     "monitoring.googleapis.com",
     "bigquery.googleapis.com",
     "cloudbuild.googleapis.com",
-    "artifactregistry.googleapis.com",
-    "vpcaccess.googleapis.com"
+    "vpcaccess.googleapis.com",
+    "billingbudgets.googleapis.com"
   ])
   
   project = var.project_id
@@ -69,11 +69,13 @@ locals {
   environment = "prod"
   
   # Configuration spécifique production
-  common_labels = merge(var.labels, {
+  common_labels = {
     environment  = var.environment
     project      = var.project_name
+    team         = var.team
+    cost-center  = var.cost_center
     managed-by   = "terraform"
-  })
+  }
   
   # Configuration réseau production
   network_config = {
@@ -92,7 +94,7 @@ locals {
     backup_config = {
       enabled                        = true
       start_time                    = "03:00"
-      location                      = var.backup_location
+      location                      = var.backup_region
       point_in_time_recovery_enabled = var.point_in_time_recovery
       transaction_log_retention_days = 7
       retained_backups              = var.backup_retention_days
@@ -141,7 +143,7 @@ module "cloud_sql" {
   environment     = var.environment
   region          = var.region
   
-  # Configuration production
+  # Configuration spécifique production
   tier                = var.database_tier
   disk_size          = var.disk_size
   max_disk_size      = var.max_disk_size
@@ -150,9 +152,12 @@ module "cloud_sql" {
   app_user           = var.database_user
   
   # Sécurité
-  deletion_protection     = var.deletion_protection
+  deletion_protection     = true  # Protection obligatoire en prod
   point_in_time_recovery = var.point_in_time_recovery
-  backup_location        = var.backup_location
+  backup_location        = var.backup_region
+  
+  # Réplica (activé pour prod)
+  enable_read_replica = true
   
   # Réseau
   network_id               = module.networking.network_id
@@ -166,37 +171,40 @@ module "cloud_sql" {
   ]
 }
 
-# Artifact Registry pour les images Docker
-resource "google_artifact_registry_repository" "docker_repo" {
-  location      = var.region
-  repository_id = "${var.project_name}-docker"
-  description   = "Repository Docker pour ${var.project_name}"
-  format        = "DOCKER"
+# Module Artifact Registry
+module "artifact_registry" {
+  source = "../../modules/artifact-registry"
+  
+  project_name              = var.project_name
+  environment              = var.environment
+  region                   = var.region
+  cloud_run_service_account = module.iam.cloud_run_service_account_email
+  cloud_build_service_account = module.iam.cloud_build_service_account_email
   
   labels = local.common_labels
-  
-  depends_on = [google_project_service.apis]
 }
 
 # Module Cloud Run
 module "cloud_run" {
   source = "../../modules/cloud-run"
   
-  project_name = var.project_name
-  project_id   = var.project_id
-  environment  = var.environment
-  region       = var.region
+  project_id      = var.project_id
+  project_name    = var.project_name
+  environment     = var.environment
+  region         = var.region
   
-  # Image Docker
-  image_url = var.docker_image_url
+  service_name    = "${var.project_name}-${var.environment}-${var.app_name}"
+  image_url      = "${module.artifact_registry.repository_url}/${var.app_name}:latest"
   docker_registry_credentials = var.docker_registry
   
   # Service Account
   service_account_email = module.iam.cloud_run_service_account_email
   
-  # Configuration performance production
+  # Scaling
   min_instances = var.cloud_run_min_instances
   max_instances = var.cloud_run_max_instances
+  
+  # Ressources
   cpu_limit    = var.cloud_run_cpu_limit
   memory_limit = var.cloud_run_memory_limit
   
@@ -214,6 +222,7 @@ module "cloud_run" {
   # Réseau
   network_name         = module.networking.network_name
   create_vpc_connector = true
+  vpc_connector_name   = "run-${var.environment}-connector"
   vpc_connector_cidr   = var.vpc_connector_cidr
   
   # Accès
@@ -245,7 +254,6 @@ module "monitoring" {
   
   # Notifications
   notification_emails = var.notification_emails
-  slack_webhook_url   = var.slack_webhook_url
   
   # Seuils d'alerte
   latency_threshold_ms      = var.latency_threshold_ms

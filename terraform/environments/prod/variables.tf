@@ -652,3 +652,27 @@ variable "custom_domain" {
   type        = string
   default     = ""
 } 
+
+# Labels
+variable "team" {
+  description = "Nom de l'équipe"
+  type        = string
+  default     = "platform"
+}
+
+variable "cost_center" {
+  description = "Centre de coût"
+  type        = string
+  default     = "it-infrastructure"
+}
+
+variable "app_name" {
+  description = "Nom de l'application"
+  type        = string
+}
+
+variable "backup_region" {
+  description = "Région pour les sauvegardes"
+  type        = string
+  default     = "europe-west2"
+}
