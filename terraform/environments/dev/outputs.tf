@@ -9,11 +9,6 @@ output "dashboard_url" {
   value       = module.monitoring.dashboard_url
 }
 
-output "artifact_registry_repo" {
-  description = "URL du repository Artifact Registry"
-  value       = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.docker_repo.repository_id}"
-}
-
 # Informations de connexion
 output "sql_instance_connection_name" {
   description = "Nom de connexion Cloud SQL"
@@ -71,7 +66,7 @@ output "deployment_info" {
     project_id        = var.project_id
     region           = var.region
     service_name     = module.cloud_run.service_name
-    image_repository = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.docker_repo.repository_id}"
+    image_url        = var.docker_image_url
     environment      = var.environment
   }
 } 

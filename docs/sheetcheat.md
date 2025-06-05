@@ -36,7 +36,32 @@ gcloud config set project VOTRE_PROJECT_ID
 gcloud config list
 ```
 
-## 4. Gestion des comptes de facturation
+## 4. Gestion des rôles IAM
+
+### Vérifier les rôles existants
+```bash
+# Lister tous les rôles d'un projet
+gcloud projects get-iam-policy VOTRE_PROJECT_ID --format='table(bindings.role,bindings.members)'
+
+# Format plus détaillé
+gcloud projects get-iam-policy VOTRE_PROJECT_ID
+```
+
+### Ajouter des rôles
+```bash
+# Ajouter un rôle à un utilisateur
+gcloud projects add-iam-policy-binding VOTRE_PROJECT_ID \
+    --member="user:utilisateur@example.com" \
+    --role="roles/serviceusage.serviceUsageAdmin"
+
+# Rôles couramment nécessaires pour Terraform
+# - roles/owner ou roles/editor (administration générale)
+# - roles/serviceusage.serviceUsageAdmin (gestion des APIs)
+# - roles/storage.admin (pour le backend GCS)
+# - roles/compute.admin (pour les ressources Compute)
+```
+
+## 5. Gestion des comptes de facturation
 
 ### Consulter les comptes de facturation
 ```bash
@@ -56,7 +81,7 @@ gcloud billing projects describe VOTRE_PROJECT_ID
 gcloud billing projects link VOTRE_PROJECT_ID --billing-account=ACCOUNT_ID
 ```
 
-## 5. Configuration Terraform
+## 6. Configuration Terraform
 
 ### Provider Google
 ```hcl
@@ -74,7 +99,35 @@ data "google_billing_account" "account" {
 }
 ```
 
-## 6. Vérification finale
+## 7. Gestion des ressources avec Terraform
+
+### Commandes de base
+```bash
+# Initialiser le projet
+terraform init
+
+# Vérifier la configuration
+terraform fmt
+terraform validate
+
+# Planifier les changements
+terraform plan -var-file=terraform.tfvars
+
+# Appliquer les changements
+terraform apply -var-file=terraform.tfvars
+
+# Détruire les ressources
+terraform destroy -var-file=terraform.tfvars
+```
+
+### Bonnes pratiques
+- Toujours utiliser des fichiers `.tfvars` pour les variables d'environnement
+- Vérifier le plan avant d'appliquer les changements
+- Utiliser des workspaces pour gérer plusieurs environnements
+- Activer le versioning sur le bucket de stockage du state
+- Utiliser des modules pour réutiliser le code
+
+## 8. Vérification finale
 
 ```bash
 # Tester la connexion

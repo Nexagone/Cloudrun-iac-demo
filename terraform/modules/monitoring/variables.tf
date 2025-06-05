@@ -52,13 +52,6 @@ variable "notification_emails" {
   default     = []
 }
 
-variable "slack_webhook_url" {
-  description = "URL du webhook Slack pour les notifications"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
 variable "latency_threshold_ms" {
   description = "Seuil de latence en millisecondes pour les alertes"
   type        = number

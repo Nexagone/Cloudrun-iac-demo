@@ -1,13 +1,13 @@
 # Réseau VPC principal
 resource "google_compute_network" "main" {
-  name                    = "${var.project_name}-vpc"
+  name                    = "${lower(var.project_name)}-vpc"
   auto_create_subnetworks = false
   routing_mode           = "REGIONAL"
 }
 
 # Sous-réseau pour les services
 resource "google_compute_subnetwork" "services" {
-  name                     = "${var.project_name}-services-subnet"
+  name                     = "${lower(var.project_name)}-services-subnet"
   ip_cidr_range           = var.services_subnet_cidr
   region                  = var.region
   network                 = google_compute_network.main.id
@@ -27,7 +27,7 @@ resource "google_compute_subnetwork" "services" {
 
 # Sous-réseau pour Cloud SQL
 resource "google_compute_subnetwork" "database" {
-  name                     = "${var.project_name}-database-subnet"
+  name                     = "${lower(var.project_name)}-database-subnet"
   ip_cidr_range           = var.database_subnet_cidr
   region                  = var.region
   network                 = google_compute_network.main.id
@@ -36,15 +36,15 @@ resource "google_compute_subnetwork" "database" {
 
 # Adresse IP externe pour Cloud NAT
 resource "google_compute_address" "nat" {
-  name   = "${var.project_name}-nat-ip"
+  name   = "${lower(var.project_name)}-nat-ip"
   region = var.region
   
-  labels = var.labels
+  labels = local.normalized_labels
 }
 
 # Cloud Router pour NAT
 resource "google_compute_router" "router" {
-  name    = "${var.project_name}-router"
+  name    = "${lower(var.project_name)}-router"
   region  = var.region
   network = google_compute_network.main.id
   
@@ -55,7 +55,7 @@ resource "google_compute_router" "router" {
 
 # Cloud NAT pour les sorties
 resource "google_compute_router_nat" "nat" {
-  name                               = "${var.project_name}-nat"
+  name                               = "${lower(var.project_name)}-nat"
   router                            = google_compute_router.router.name
   region                            = var.region
   nat_ip_allocate_option            = "MANUAL_ONLY"
@@ -70,7 +70,7 @@ resource "google_compute_router_nat" "nat" {
 
 # Firewall - Autoriser les connexions internes
 resource "google_compute_firewall" "allow_internal" {
-  name    = "${var.project_name}-allow-internal"
+  name    = "${lower(var.project_name)}-allow-internal"
   network = google_compute_network.main.name
   
   allow {
@@ -98,7 +98,7 @@ resource "google_compute_firewall" "allow_internal" {
 
 # Firewall - Autoriser HTTPS depuis l'extérieur
 resource "google_compute_firewall" "allow_https" {
-  name    = "${var.project_name}-allow-https"
+  name    = "${lower(var.project_name)}-allow-https"
   network = google_compute_network.main.name
   
   allow {
@@ -112,7 +112,7 @@ resource "google_compute_firewall" "allow_https" {
 
 # Firewall - Autoriser les health checks de Cloud Load Balancer
 resource "google_compute_firewall" "allow_health_check" {
-  name    = "${var.project_name}-allow-health-check"
+  name    = "${lower(var.project_name)}-allow-health-check"
   network = google_compute_network.main.name
   
   allow {
@@ -130,7 +130,7 @@ resource "google_compute_firewall" "allow_health_check" {
 
 # Firewall - Bloquer tout le reste
 resource "google_compute_firewall" "deny_all" {
-  name     = "${var.project_name}-deny-all"
+  name     = "${lower(var.project_name)}-deny-all"
   network  = google_compute_network.main.name
   priority = 65534
   
@@ -143,7 +143,7 @@ resource "google_compute_firewall" "deny_all" {
 
 # Private Service Connect pour Cloud SQL
 resource "google_compute_global_address" "private_ip_address" {
-  name          = "${var.project_name}-private-ip"
+  name          = "${lower(var.project_name)}-private-ip"
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"
   prefix_length = 16

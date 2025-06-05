@@ -9,11 +9,6 @@ variable "project_name" {
   type        = string
 }
 
-variable "billing_account" {
-  description = "ID du compte de facturation GCP"
-  type        = string
-}
-
 # Variables d'environnement
 variable "environment" {
   description = "Nom de l'environnement"
@@ -214,13 +209,7 @@ variable "enable_log_sink" {
 }
 
 # Configuration Budget
-variable "budget_amount" {
-  description = "Montant du budget en euros (0 pour désactiver)"
-  type        = number
-  default     = 50
-}
-
-# IAM
+# Configuration IAM
 variable "workload_identity_users" {
   description = "Liste des utilisateurs pour Workload Identity"
   type        = list(string)

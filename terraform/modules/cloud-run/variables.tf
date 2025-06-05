@@ -137,6 +137,14 @@ variable "labels" {
   default     = {}
 }
 
+# Transformation des labels pour assurer la conformité
+locals {
+  normalized_labels = {
+    for key, value in var.labels :
+    key => lower(replace(value, "-", "_"))
+  }
+}
+
 variable "docker_registry_credentials" {
   description = "Credentials pour le registre Docker privé"
   type = object({

@@ -12,7 +12,7 @@ resource "random_password" "app_user_password" {
 
 # Instance Cloud SQL PostgreSQL
 resource "google_sql_database_instance" "main" {
-  name             = "${var.project_name}-${var.environment}-postgres"
+  name             = "${lower(var.project_name)}-${var.environment}-postgres"
   database_version = var.database_version
   region          = var.region
   deletion_protection = var.deletion_protection
@@ -27,7 +27,7 @@ resource "google_sql_database_instance" "main" {
     disk_autoresize = true
     disk_autoresize_limit = var.max_disk_size
     
-    user_labels = var.labels
+    user_labels = local.normalized_labels
     
     backup_configuration {
       enabled                        = true
@@ -55,23 +55,8 @@ resource "google_sql_database_instance" "main" {
     }
     
     database_flags {
-      name  = "log_min_duration_statement"
-      value = "1000"
-    }
-    
-    database_flags {
-      name  = "log_statement"
-      value = "ddl"
-    }
-    
-    database_flags {
       name  = "max_connections"
       value = var.max_connections
-    }
-    
-    database_flags {
-      name  = "shared_preload_libraries"
-      value = "pg_stat_statements"
     }
     
     insights_config {
@@ -90,7 +75,7 @@ resource "google_sql_database_instance" "main" {
 resource "google_sql_database_instance" "read_replica" {
   count = var.environment == "prod" && var.enable_read_replica ? 1 : 0
   
-  name                 = "${google_sql_database_instance.main.name}-replica"
+  name                 = "${lower(var.project_name)}-${var.environment}-replica"
   master_instance_name = google_sql_database_instance.main.name
   region              = var.replica_region != "" ? var.replica_region : var.region
   database_version    = var.database_version
@@ -105,7 +90,7 @@ resource "google_sql_database_instance" "read_replica" {
     availability_type = "ZONAL"
     disk_autoresize  = true
     
-    user_labels = var.labels
+    user_labels = local.normalized_labels
     
     ip_configuration {
       ipv4_enabled    = false
@@ -144,7 +129,7 @@ resource "google_sql_user" "app_user" {
 
 # Stockage des mots de passe dans Secret Manager
 resource "google_secret_manager_secret" "db_root_password" {
-  secret_id = "${var.project_name}-${var.environment}-db-root-password"
+  secret_id = "${lower(var.project_name)}-${var.environment}-db-root-password"
   
   replication {
     user_managed {
@@ -154,7 +139,7 @@ resource "google_secret_manager_secret" "db_root_password" {
     }
   }
   
-  labels = var.labels
+  labels = local.normalized_labels
 }
 
 resource "google_secret_manager_secret_version" "db_root_password" {
@@ -163,7 +148,7 @@ resource "google_secret_manager_secret_version" "db_root_password" {
 }
 
 resource "google_secret_manager_secret" "db_app_password" {
-  secret_id = "${var.project_name}-${var.environment}-db-app-password"
+  secret_id = "${lower(var.project_name)}-${var.environment}-db-app-password"
   
   replication {
     user_managed {
@@ -173,7 +158,7 @@ resource "google_secret_manager_secret" "db_app_password" {
     }
   }
   
-  labels = var.labels
+  labels = local.normalized_labels
 }
 
 resource "google_secret_manager_secret_version" "db_app_password" {

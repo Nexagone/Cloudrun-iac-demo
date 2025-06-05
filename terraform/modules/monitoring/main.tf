@@ -1,4 +1,4 @@
-# Canal de notification Slack/Email
+# Canal de notification Email
 resource "google_monitoring_notification_channel" "email" {
   count = length(var.notification_emails)
   
@@ -7,19 +7,6 @@ resource "google_monitoring_notification_channel" "email" {
   
   labels = {
     email_address = var.notification_emails[count.index]
-  }
-  
-  enabled = true
-}
-
-resource "google_monitoring_notification_channel" "slack" {
-  count = var.slack_webhook_url != "" ? 1 : 0
-  
-  display_name = "Slack ${var.environment}"
-  type         = "slack"
-  
-  labels = {
-    webhook_url = var.slack_webhook_url
   }
   
   enabled = true
@@ -61,7 +48,7 @@ resource "google_monitoring_alert_policy" "uptime_alert" {
     condition_threshold {
       filter          = "metric.type=\"monitoring.googleapis.com/uptime_check/check_passed\" resource.type=\"uptime_url\" metric.label.check_id=\"${google_monitoring_uptime_check_config.health_check.uptime_check_id}\""
       duration        = "300s"
-      comparison      = "COMPARISON_EQUAL"
+      comparison      = "COMPARISON_LT"
       threshold_value = 1
       
       aggregations {
@@ -77,10 +64,7 @@ resource "google_monitoring_alert_policy" "uptime_alert" {
     }
   }
   
-  notification_channels = concat(
-    [for ch in google_monitoring_notification_channel.email : ch.id],
-    var.slack_webhook_url != "" ? [google_monitoring_notification_channel.slack[0].id] : []
-  )
+  notification_channels = [for ch in google_monitoring_notification_channel.email : ch.id]
   
   alert_strategy {
     auto_close = "1800s"
@@ -111,10 +95,7 @@ resource "google_monitoring_alert_policy" "latency_alert" {
     }
   }
   
-  notification_channels = concat(
-    [for ch in google_monitoring_notification_channel.email : ch.id],
-    var.slack_webhook_url != "" ? [google_monitoring_notification_channel.slack[0].id] : []  
-  )
+  notification_channels = [for ch in google_monitoring_notification_channel.email : ch.id]
 }
 
 # Alertes sur le taux d'erreur
@@ -141,10 +122,7 @@ resource "google_monitoring_alert_policy" "error_rate_alert" {
     }
   }
   
-  notification_channels = concat(
-    [for ch in google_monitoring_notification_channel.email : ch.id],
-    var.slack_webhook_url != "" ? [google_monitoring_notification_channel.slack[0].id] : []
-  )
+  notification_channels = [for ch in google_monitoring_notification_channel.email : ch.id]
 }
 
 # Alertes sur l'utilisation CPU
@@ -157,24 +135,21 @@ resource "google_monitoring_alert_policy" "cpu_alert" {
     display_name = "High CPU utilization"
     
     condition_threshold {
-      filter         = "resource.type=\"cloud_run_revision\" resource.label.service_name=\"${var.service_name}\" metric.type=\"run.googleapis.com/container/cpu/utilizations\""
-      duration       = "300s"
-      comparison     = "COMPARISON_GT"
+      filter          = "resource.type=\"cloud_run_revision\" resource.label.service_name=\"${var.service_name}\" metric.type=\"run.googleapis.com/container/cpu/utilizations\""
+      duration        = "300s"
+      comparison      = "COMPARISON_GT"
       threshold_value = var.cpu_threshold
       
       aggregations {
         alignment_period     = "300s"
-        per_series_aligner   = "ALIGN_MEAN"
+        per_series_aligner   = "ALIGN_PERCENTILE_99"
         cross_series_reducer = "REDUCE_MEAN"
         group_by_fields     = ["resource.label.service_name"]
       }
     }
   }
   
-  notification_channels = concat(
-    [for ch in google_monitoring_notification_channel.email : ch.id],
-    var.slack_webhook_url != "" ? [google_monitoring_notification_channel.slack[0].id] : []
-  )
+  notification_channels = [for ch in google_monitoring_notification_channel.email : ch.id]
 }
 
 # Alertes sur l'utilisation mémoire
@@ -187,24 +162,21 @@ resource "google_monitoring_alert_policy" "memory_alert" {
     display_name = "High memory utilization"
     
     condition_threshold {
-      filter         = "resource.type=\"cloud_run_revision\" resource.label.service_name=\"${var.service_name}\" metric.type=\"run.googleapis.com/container/memory/utilizations\""
-      duration       = "300s"
-      comparison     = "COMPARISON_GT"
+      filter          = "resource.type=\"cloud_run_revision\" resource.label.service_name=\"${var.service_name}\" metric.type=\"run.googleapis.com/container/memory/utilizations\""
+      duration        = "300s"
+      comparison      = "COMPARISON_GT"
       threshold_value = var.memory_threshold
       
       aggregations {
         alignment_period     = "300s"
-        per_series_aligner   = "ALIGN_MEAN"
+        per_series_aligner   = "ALIGN_PERCENTILE_99"
         cross_series_reducer = "REDUCE_MEAN"
         group_by_fields     = ["resource.label.service_name"]
       }
     }
   }
   
-  notification_channels = concat(
-    [for ch in google_monitoring_notification_channel.email : ch.id],
-    var.slack_webhook_url != "" ? [google_monitoring_notification_channel.slack[0].id] : []
-  )
+  notification_channels = [for ch in google_monitoring_notification_channel.email : ch.id]
 }
 
 # Alertes Cloud SQL - connexions
@@ -232,10 +204,7 @@ resource "google_monitoring_alert_policy" "sql_connections_alert" {
     }
   }
   
-  notification_channels = concat(
-    [for ch in google_monitoring_notification_channel.email : ch.id],
-    var.slack_webhook_url != "" ? [google_monitoring_notification_channel.slack[0].id] : []
-  )
+  notification_channels = [for ch in google_monitoring_notification_channel.email : ch.id]
 }
 
 # Dashboard principal
@@ -243,114 +212,99 @@ resource "google_monitoring_dashboard" "main" {
   dashboard_json = jsonencode({
     displayName = "${var.project_name}-${var.environment} - Application Dashboard"
     
-    mosaicLayout = {
-      tiles = [
+    gridLayout = {
+      columns = 2
+      widgets = [
         {
-          width = 6
-          height = 4
-          widget = {
-            title = "Requêtes par minute"
-            xyChart = {
-              dataSets = [{
-                timeSeriesQuery = {
-                  timeSeriesFilter = {
-                    filter = "resource.type=\"cloud_run_revision\" resource.label.service_name=\"${var.service_name}\" metric.type=\"run.googleapis.com/request_count\""
-                    aggregation = {
-                      alignmentPeriod = "60s"
-                      perSeriesAligner = "ALIGN_RATE"
-                      crossSeriesReducer = "REDUCE_SUM"
-                      groupByFields = ["resource.label.service_name"]
-                    }
+          title = "Requêtes par minute"
+          xyChart = {
+            dataSets = [{
+              timeSeriesQuery = {
+                timeSeriesFilter = {
+                  filter = "resource.type=\"cloud_run_revision\" resource.label.service_name=\"${var.service_name}\" metric.type=\"run.googleapis.com/request_count\""
+                  aggregation = {
+                    alignmentPeriod = "60s"
+                    perSeriesAligner = "ALIGN_RATE"
+                    crossSeriesReducer = "REDUCE_SUM"
+                    groupByFields = ["resource.label.service_name"]
                   }
                 }
-                plotType = "LINE"
-              }]
-              timeshiftDuration = "0s"
-              yAxis = {
-                label = "Requests/min"
-                scale = "LINEAR"
               }
+              plotType = "LINE"
+            }]
+            timeshiftDuration = "0s"
+            yAxis = {
+              label = "Requests/min"
+              scale = "LINEAR"
             }
           }
         },
         {
-          width = 6
-          height = 4
-          widget = {
-            title = "Latence P95"
-            xyChart = {
-              dataSets = [{
-                timeSeriesQuery = {
-                  timeSeriesFilter = {
-                    filter = "resource.type=\"cloud_run_revision\" resource.label.service_name=\"${var.service_name}\" metric.type=\"run.googleapis.com/request_latencies\""
-                    aggregation = {
-                      alignmentPeriod = "60s"
-                      perSeriesAligner = "ALIGN_DELTA"
-                      crossSeriesReducer = "REDUCE_PERCENTILE_95"
-                      groupByFields = ["resource.label.service_name"]
-                    }
+          title = "Latence P95"
+          xyChart = {
+            dataSets = [{
+              timeSeriesQuery = {
+                timeSeriesFilter = {
+                  filter = "resource.type=\"cloud_run_revision\" resource.label.service_name=\"${var.service_name}\" metric.type=\"run.googleapis.com/request_latencies\""
+                  aggregation = {
+                    alignmentPeriod = "60s"
+                    perSeriesAligner = "ALIGN_DELTA"
+                    crossSeriesReducer = "REDUCE_PERCENTILE_95"
+                    groupByFields = ["resource.label.service_name"]
                   }
                 }
-                plotType = "LINE"
-              }]
-              yAxis = {
-                label = "Latency (ms)"
-                scale = "LINEAR"
               }
+              plotType = "LINE"
+            }]
+            yAxis = {
+              label = "Latency (ms)"
+              scale = "LINEAR"
             }
           }
         },
         {
-          width = 6
-          height = 4
-          widget = {
-            title = "Taux d'erreur"
-            xyChart = {
-              dataSets = [{
-                timeSeriesQuery = {
-                  timeSeriesFilter = {
-                    filter = "resource.type=\"cloud_run_revision\" resource.label.service_name=\"${var.service_name}\" metric.type=\"run.googleapis.com/request_count\" metric.label.response_code_class!=\"2xx\""
-                    aggregation = {
-                      alignmentPeriod = "60s"
-                      perSeriesAligner = "ALIGN_RATE"
-                      crossSeriesReducer = "REDUCE_SUM"
-                      groupByFields = ["resource.label.service_name"]
-                    }
+          title = "Taux d'erreur"
+          xyChart = {
+            dataSets = [{
+              timeSeriesQuery = {
+                timeSeriesFilter = {
+                  filter = "resource.type=\"cloud_run_revision\" resource.label.service_name=\"${var.service_name}\" metric.type=\"run.googleapis.com/request_count\" metric.label.response_code_class!=\"2xx\""
+                  aggregation = {
+                    alignmentPeriod = "60s"
+                    perSeriesAligner = "ALIGN_RATE"
+                    crossSeriesReducer = "REDUCE_SUM"
+                    groupByFields = ["resource.label.service_name"]
                   }
                 }
-                plotType = "LINE"
-              }]
-              yAxis = {
-                label = "Errors/min"
-                scale = "LINEAR"
               }
+              plotType = "LINE"
+            }]
+            yAxis = {
+              label = "Errors/min"
+              scale = "LINEAR"
             }
           }
         },
         {
-          width = 6
-          height = 4
-          widget = {
-            title = "Utilisation CPU"
-            xyChart = {
-              dataSets = [{
-                timeSeriesQuery = {
-                  timeSeriesFilter = {
-                    filter = "resource.type=\"cloud_run_revision\" resource.label.service_name=\"${var.service_name}\" metric.type=\"run.googleapis.com/container/cpu/utilizations\""
-                    aggregation = {
-                      alignmentPeriod = "60s"
-                      perSeriesAligner = "ALIGN_MEAN"
-                      crossSeriesReducer = "REDUCE_MEAN"
-                      groupByFields = ["resource.label.service_name"]
-                    }
+          title = "Utilisation CPU"
+          xyChart = {
+            dataSets = [{
+              timeSeriesQuery = {
+                timeSeriesFilter = {
+                  filter = "resource.type=\"cloud_run_revision\" resource.label.service_name=\"${var.service_name}\" metric.type=\"run.googleapis.com/container/cpu/utilizations\""
+                  aggregation = {
+                    alignmentPeriod = "60s"
+                    perSeriesAligner = "ALIGN_PERCENTILE_99"
+                    crossSeriesReducer = "REDUCE_MEAN"
+                    groupByFields = ["resource.label.service_name"]
                   }
                 }
-                plotType = "LINE"
-              }]
-              yAxis = {
-                label = "CPU %"
-                scale = "LINEAR"
               }
+              plotType = "LINE"
+            }]
+            yAxis = {
+              label = "CPU %"
+              scale = "LINEAR"
             }
           }
         }

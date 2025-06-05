@@ -9,11 +9,8 @@ output "uptime_check_id" {
 }
 
 output "notification_channels" {
-  description = "IDs des canaux de notification"
-  value = {
-    email = [for ch in google_monitoring_notification_channel.email : ch.id]
-    slack = var.slack_webhook_url != "" ? [google_monitoring_notification_channel.slack[0].id] : []
-  }
+  description = "IDs des canaux de notification email"
+  value       = [for ch in google_monitoring_notification_channel.email : ch.id]
 }
 
 output "log_sink_name" {

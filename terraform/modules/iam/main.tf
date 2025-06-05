@@ -1,6 +1,6 @@
 # Service Account pour Cloud Run
 resource "google_service_account" "cloud_run" {
-  account_id   = "${var.project_name}-${var.environment}-cloudrun"
+  account_id   = "sa-${var.environment}-cloudrun"
   display_name = "Service Account pour Cloud Run ${var.environment}"
   description  = "Service Account avec permissions minimales pour Cloud Run"
 }
@@ -35,7 +35,7 @@ resource "google_project_iam_member" "monitoring_writer" {
 
 # Service Account pour Cloud Build
 resource "google_service_account" "cloud_build" {
-  account_id   = "${var.project_name}-${var.environment}-cloudbuild"  
+  account_id   = "sa-${var.environment}-cloudbuild"  
   display_name = "Service Account pour Cloud Build ${var.environment}"
   description  = "Service Account pour les déploiements CI/CD"
 }
@@ -70,7 +70,7 @@ resource "google_service_account_iam_member" "cloud_build_sa_user" {
 
 # Service Account pour monitoring
 resource "google_service_account" "monitoring" {
-  account_id   = "${var.project_name}-${var.environment}-monitoring"
+  account_id   = "sa-${var.environment}-monitoring"
   display_name = "Service Account pour Monitoring ${var.environment}"
   description  = "Service Account pour les alertes et dashboards"
 }

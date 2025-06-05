@@ -1,9 +1,12 @@
+# Récupération des informations de l'instance Cloud SQL
+data "google_sql_database_instance" "instance" {
+  name = element(split(":", var.sql_connection_name), 2)
+}
+
 # Service Cloud Run
 resource "google_cloud_run_v2_service" "main" {
-  name     = "${var.project_name}-${var.environment}-service"
+  name     = "${lower(var.project_name)}-${var.environment}-service"
   location = var.region
-  
-  deletion_protection = var.environment == "prod" ? true : false
   
   template {
     service_account = var.service_account_email
@@ -12,14 +15,6 @@ resource "google_cloud_run_v2_service" "main" {
     scaling {
       min_instance_count = var.min_instances
       max_instance_count = var.max_instances
-    }
-    
-    # Configuration des volumes pour Cloud SQL
-    volumes {
-      name = "cloudsql"
-      cloud_sql_instance {
-        instances = [var.sql_connection_name]
-      }
     }
     
     containers {
@@ -38,7 +33,7 @@ resource "google_cloud_run_v2_service" "main" {
       # Variables d'environnement Spring Boot
       env {
         name  = "SPRING_DATASOURCE_HOST"
-        value = "localhost"  # Utilisation de localhost car Cloud SQL est monté localement
+        value = data.google_sql_database_instance.instance.private_ip_address
       }
       
       env {
@@ -81,29 +76,29 @@ resource "google_cloud_run_v2_service" "main" {
         name           = "http1"
       }
       
-      # Configuration des volumes
-      volume_mounts {
-        name       = "cloudsql"
-        mount_path = "/cloudsql"
-      }
-      
       # Health check personnalisé
       startup_probe {
         http_get {
           path = var.health_check_path
           port = var.port
         }
-        initial_delay_seconds = 30
+        initial_delay_seconds = 60
         timeout_seconds      = 10
-        period_seconds       = 10
-        failure_threshold    = 3
+        period_seconds      = 10
+        failure_threshold    = 5
       }
       
       # Configuration des credentials Docker si fournis
-      dynamic "image_pull_credentials" {
+      dynamic "env" {
         for_each = var.docker_registry_credentials != null ? [1] : []
         content {
-          secret_name = google_secret_manager_secret.docker_credentials[0].secret_id
+          name = "DOCKER_CONFIG"
+          value_source {
+            secret_key_ref {
+              secret = google_secret_manager_secret.docker_credentials[0].secret_id
+              version = "latest"
+            }
+          }
         }
       }
       
@@ -114,15 +109,18 @@ resource "google_cloud_run_v2_service" "main" {
         }
         initial_delay_seconds = 60
         timeout_seconds      = 10
-        period_seconds       = 30
+        period_seconds      = 30
         failure_threshold    = 3
       }
     }
     
     # Configuration réseau
-    vpc_access {
-      connector = var.vpc_connector_name
-      egress    = "PRIVATE_RANGES_ONLY"
+    dynamic "vpc_access" {
+      for_each = var.vpc_connector_name != "" ? [1] : []
+      content {
+        connector = "projects/${var.project_id}/locations/${var.region}/connectors/${var.vpc_connector_name}"
+        egress    = "PRIVATE_RANGES_ONLY"
+      }
     }
     
     # Annotations pour optimisations
@@ -140,7 +138,7 @@ resource "google_cloud_run_v2_service" "main" {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
   }
   
-  labels = var.labels
+  labels = local.normalized_labels
 }
 
 # Politique IAM pour permettre l'accès public si nécessaire
@@ -173,13 +171,13 @@ resource "google_cloud_run_domain_mapping" "domain" {
 resource "google_vpc_access_connector" "connector" {
   count = var.create_vpc_connector ? 1 : 0
   
-  name          = "${var.project_name}-${var.environment}-connector"
+  name          = "run-${var.environment}-connector"
   region        = var.region
   ip_cidr_range = var.vpc_connector_cidr
   network       = var.network_name
   
-  min_instances = 2
-  max_instances = 10
+  min_instances = 2  # Minimum requis par GCP
+  max_instances = 3  # On garde un maximum bas pour contrôler les coûts
   
   machine_type = "e2-micro"
 }
@@ -188,13 +186,13 @@ resource "google_vpc_access_connector" "connector" {
 resource "google_secret_manager_secret" "docker_credentials" {
   count = var.docker_registry_credentials != null ? 1 : 0
   
-  secret_id = "${var.project_name}-${var.environment}-docker-credentials"
+  secret_id = "${lower(var.project_name)}-${var.environment}-docker-credentials"
   
   replication {
     auto {}
   }
   
-  labels = var.labels
+  labels = local.normalized_labels
 }
 
 resource "google_secret_manager_secret_version" "docker_credentials" {

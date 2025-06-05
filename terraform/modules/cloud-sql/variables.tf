@@ -129,4 +129,12 @@ variable "labels" {
   description = "Labels à appliquer aux ressources"
   type        = map(string)
   default     = {}
+}
+
+# Transformation des labels pour assurer la conformité
+locals {
+  normalized_labels = {
+    for key, value in var.labels :
+    key => lower(replace(value, "-", "_"))
+  }
 } 

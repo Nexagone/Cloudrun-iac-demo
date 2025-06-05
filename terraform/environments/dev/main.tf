@@ -46,8 +46,8 @@ resource "google_project_service" "apis" {
     "monitoring.googleapis.com",
     "bigquery.googleapis.com",
     "cloudbuild.googleapis.com",
-    "artifactregistry.googleapis.com",
-    "vpcaccess.googleapis.com"
+    "vpcaccess.googleapis.com",
+    "billingbudgets.googleapis.com"
   ])
   
   project = var.project_id
@@ -131,16 +131,17 @@ module "cloud_sql" {
   ]
 }
 
-# Artifact Registry pour les images Docker
-resource "google_artifact_registry_repository" "docker_repo" {
-  location      = var.region
-  repository_id = "${var.project_name}-docker"
-  description   = "Repository Docker pour ${var.project_name}"
-  format        = "DOCKER"
+# Module Artifact Registry
+module "artifact_registry" {
+  source = "../../modules/artifact-registry"
+  
+  project_name              = var.project_name
+  environment              = var.environment
+  region                   = var.region
+  cloud_run_service_account = module.iam.cloud_run_service_account_email
+  cloud_build_service_account = module.iam.cloud_build_service_account_email
   
   labels = local.common_labels
-  
-  depends_on = [google_project_service.apis]
 }
 
 # Module Cloud Run
@@ -153,7 +154,7 @@ module "cloud_run" {
   region       = var.region
   
   # Image Docker
-  image_url = var.docker_image_url
+  image_url = "${module.artifact_registry.repository_url}/dummy-data-api:latest"
   docker_registry_credentials = var.docker_registry
   
   # Service Account
@@ -181,6 +182,7 @@ module "cloud_run" {
   # Réseau
   network_name         = module.networking.network_name
   create_vpc_connector = true
+  vpc_connector_name   = module.cloud_run.vpc_connector_name
   vpc_connector_cidr   = var.vpc_connector_cidr
   
   # Accès
@@ -201,74 +203,31 @@ module "cloud_run" {
 module "monitoring" {
   source = "../../modules/monitoring"
   
-  project_name = var.project_name
-  project_id   = var.project_id
-  environment  = var.environment
-  region       = var.region
+  project_name    = var.project_name
+  project_id      = var.project_id
+  environment     = var.environment
+  region         = var.region
+  service_name    = module.cloud_run.service_name
+  service_url     = module.cloud_run.service_url
+  sql_instance_name = module.cloud_sql.instance_name
   
-  service_name        = module.cloud_run.service_name
-  service_url         = module.cloud_run.service_url
-  sql_instance_name   = module.cloud_sql.instance_name
-  
-  # Notifications
-  notification_emails = var.notification_emails
-  slack_webhook_url   = var.slack_webhook_url
-  
-  # Seuils d'alerte (plus élevés pour dev)
-  latency_threshold_ms      = var.latency_threshold_ms
-  error_rate_threshold      = var.error_rate_threshold
-  cpu_threshold            = var.cpu_threshold
-  memory_threshold         = var.memory_threshold
+  # Configuration des notifications
+  notification_emails     = var.notification_emails
+  latency_threshold_ms   = var.latency_threshold_ms
+  error_rate_threshold   = var.error_rate_threshold
+  cpu_threshold         = var.cpu_threshold
+  memory_threshold      = var.memory_threshold
   sql_connections_threshold = var.sql_connections_threshold
   
-  # Logs
-  enable_log_sink   = var.enable_log_sink
-  bigquery_dataset  = "${var.project_name}_${var.environment}_logs"
+  # Configuration des logs
+  enable_log_sink = var.enable_log_sink
+  bigquery_dataset = "${replace(var.project_name, "-", "_")}_${var.environment}_logs"
   
+  # Labels
   labels = local.common_labels
   
   depends_on = [
     google_project_service.apis,
     module.cloud_run
   ]
-}
-
-# Budget Alert (optionnel)
-resource "google_billing_budget" "budget" {
-  count = var.budget_amount > 0 ? 1 : 0
-  
-  billing_account = var.billing_account
-  display_name    = "Budget ${var.project_name} ${var.environment}"
-  
-  budget_filter {
-    projects = ["projects/${var.project_id}"]
-    credit_types_treatment = "INCLUDE_ALL_CREDITS"
-  }
-  
-  amount {
-    specified_amount {
-      currency_code = "EUR"
-      units         = tostring(var.budget_amount)
-    }
-  }
-  
-  threshold_rules {
-    threshold_percent = 0.5
-    spend_basis      = "CURRENT_SPEND"
-  }
-  
-  threshold_rules {
-    threshold_percent = 0.9
-    spend_basis      = "CURRENT_SPEND"
-  }
-  
-  threshold_rules {
-    threshold_percent = 1.0
-    spend_basis      = "FORECASTED_SPEND"
-  }
-  
-  all_updates_rule {
-    monitoring_notification_channels = module.monitoring.notification_channels.email
-    disable_default_iam_recipients   = false
-  }
 } 
