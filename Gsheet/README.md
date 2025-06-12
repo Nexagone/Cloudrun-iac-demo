@@ -4,6 +4,56 @@ Ce guide explique comment mettre en place l'intégration entre Google Sheets et 
 1. Google Sheets récupère des données depuis Cloud Run
 2. Cloud Run écrit des données dans Google Sheets
 
+## Déploiement de l'infrastructure avec Terraform
+
+Avant de configurer l'intégration Google Sheets, vous devez déployer votre infrastructure Cloud Run avec Terraform.
+
+### Commandes de déploiement par environnement
+
+1. **Environnement de développement**
+   ```bash
+   cd terraform/environments/dev
+   terraform init
+   terraform plan -var-file="terraform.tfvars"
+   terraform apply -var-file="terraform.tfvars"
+   ```
+
+2. **Environnement de staging**
+   ```bash
+   cd terraform/environments/staging
+   terraform init
+   terraform plan -var-file="terraform.tfvars"
+   terraform apply -var-file="terraform.tfvars"
+   ```
+
+3. **Environnement de production**
+   ```bash
+   cd terraform/environments/prod
+   terraform init
+   terraform plan -var-file="terraform.tfvars"
+   terraform apply -var-file="terraform.tfvars"
+   ```
+
+### Configuration des backends Terraform
+
+Chaque environnement utilise un backend GCS séparé. Assurez-vous que les fichiers `backend.conf` sont correctement configurés :
+
+- `terraform/environments/dev/backend.conf`
+- `terraform/environments/staging/backend.conf`
+- `terraform/environments/prod/backend.conf`
+
+### Variables importantes pour Google Sheets
+
+Si vous utilisez le scénario 2 (Cloud Run écrit dans Google Sheets), assu-vous que ces variables sont configurées dans vos fichiers `terraform.tfvars` :
+
+```hcl
+environment_variables = {
+  "GOOGLE_SHEETS_CREDENTIALS" = "projects/${var.project_id}/secrets/google-sheets-credentials"
+  "GOOGLE_SHEETS_SPREADSHEET_ID" = "votre-spreadsheet-id"
+  # ... autres variables
+}
+```
+
 ## Scénario 1 : Google Sheets récupère des données depuis Cloud Run
 
 Dans ce scénario, Google Sheets utilise Apps Script pour appeler une API hébergée sur Cloud Run et afficher les données dans une feuille de calcul.

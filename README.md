@@ -148,6 +148,64 @@ terraform plan -var-file=terraform.tfvars
 terraform apply -var-file=terraform.tfvars
 ```
 
+## 🚀 Déploiement par Environnement
+
+### Environnement de Développement
+```bash
+cd terraform/environments/dev
+terraform init -backend-config=backend.conf
+terraform plan -var-file="terraform.tfvars"
+terraform apply -var-file="terraform.tfvars"
+```
+
+### Environnement de Staging
+```bash
+cd terraform/environments/staging
+terraform init -backend-config=backend.conf
+terraform plan -var-file="terraform.tfvars"
+terraform apply -var-file="terraform.tfvars"
+```
+
+### Environnement de Production
+```bash
+cd terraform/environments/prod
+terraform init -backend-config=backend.conf
+terraform plan -var-file="terraform.tfvars"
+terraform apply -var-file="terraform.tfvars"
+```
+
+### Configuration des Backends Terraform
+
+Chaque environnement utilise un backend GCS séparé. Assurez-vous que les fichiers `backend.conf` sont correctement configurés :
+
+- `terraform/environments/dev/backend.conf`
+- `terraform/environments/staging/backend.conf`
+- `terraform/environments/prod/backend.conf`
+
+Exemple de configuration `backend.conf` :
+```hcl
+bucket = "terraform-state-${environment}-cloudrun-centralizer"
+prefix = "terraform/state"
+```
+
+### Déploiement avec Validation
+```bash
+# Validation de la syntaxe
+terraform validate
+
+# Formatage du code
+terraform fmt -recursive
+
+# Plan avec output détaillé
+terraform plan -var-file="terraform.tfvars" -out=tfplan
+
+# Application du plan validé
+terraform apply tfplan
+
+# Nettoyage du plan
+rm tfplan
+```
+
 #### Vérification Post-Déploiement
 ```bash
 # Vérifier les outputs
