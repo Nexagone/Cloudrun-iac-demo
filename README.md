@@ -109,7 +109,7 @@ authorized_networks = [
 4. **Créer le bucket pour le state**
 ```bash
 PROJECT_ID="votre-project-id-dev"
-gsutil mb -p $PROJECT_ID gs://terraform-state-dev-data-centralization
+gsutil mb -p $PROJECT_ID -l eu-west1 gs://terraform-state-dev-data-centralization
 gsutil versioning set on gs://terraform-state-dev-data-centralization
 ```
 
@@ -146,6 +146,9 @@ terraform plan -var-file=terraform.tfvars
 
 # Appliquer les changements
 terraform apply -var-file=terraform.tfvars
+
+# Retirer le lock d'un state bloqué ( en cas d'extreme urgence )
+terraform force-unlock LOCK_ID
 ```
 
 ## 🚀 Déploiement par Environnement
@@ -181,6 +184,42 @@ Chaque environnement utilise un backend GCS séparé. Assurez-vous que les fichi
 - `terraform/environments/dev/backend.conf`
 - `terraform/environments/staging/backend.conf`
 - `terraform/environments/prod/backend.conf`
+
+#### Création des buckets pour le state Terraform
+
+Avant d'initialiser Terraform, créez les buckets GCS pour chaque environnement :
+
+```bash
+# Définir les variables
+PROJECT_ID="cloudrun-centralizer"
+REGION="europe-west1"
+
+# Bucket pour l'environnement de développement
+gsutil mb -p $PROJECT_ID -c STANDARD -l $REGION gs://terraform-state-dev-cloudrun-centralizer
+gsutil versioning set on gs://terraform-state-dev-cloudrun-centralizer
+
+# Bucket pour l'environnement de staging
+gsutil mb -p $PROJECT_ID -c STANDARD -l $REGION gs://terraform-state-staging-cloudrun-centralizer
+gsutil versioning set on gs://terraform-state-staging-cloudrun-centralizer
+
+# Bucket pour l'environnement de production
+gsutil mb -p $PROJECT_ID -c STANDARD -l $REGION gs://terraform-state-prod-cloudrun-centralizer
+gsutil versioning set on gs://terraform-state-prod-cloudrun-centralizer
+```
+
+#### Sécurisation des buckets (Optionnel mais recommandé)
+
+```bash
+# Activer la uniform bucket-level access
+gsutil uniformbucketlevelaccess set on gs://terraform-state-dev-cloudrun-centralizer
+gsutil uniformbucketlevelaccess set on gs://terraform-state-staging-cloudrun-centralizer
+gsutil uniformbucketlevelaccess set on gs://terraform-state-prod-cloudrun-centralizer
+
+# Activer la protection contre la suppression publique
+gsutil pap set enforced gs://terraform-state-dev-cloudrun-centralizer
+gsutil pap set enforced gs://terraform-state-staging-cloudrun-centralizer
+gsutil pap set enforced gs://terraform-state-prod-cloudrun-centralizer
+```
 
 Exemple de configuration `backend.conf` :
 ```hcl

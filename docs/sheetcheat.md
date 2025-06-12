@@ -23,6 +23,12 @@ gcloud auth login
 gcloud auth application-default login
 ```
 
+## 2.1 Nettoyage des credentials
+````
+gcloud auth revoke --all
+gcloud config unset account
+````
+
 ## 3. Configuration du projet
 
 ```bash
